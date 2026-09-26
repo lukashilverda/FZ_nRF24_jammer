@@ -1,285 +1,108 @@
-<div align="center">
-  <img src="https://avatars.githubusercontent.com/u/176677387" width="150" height="auto" />
-  <h1> 🌟 FZ nRF24 Jammer 🌟 </h1>
-</div>
-
-Welcome to the **FZ nRF24 Jammer** repository! 🎉 Dive into the world of RF interference with this project based on the Flipper Zero and NRF24.
-
-
-
-## 📚 Table of Contents
-- [🚀 What Can You Do with This?](#-what-can-you-do-with-this)
-- [📋 List of Components](#-list-of-components)
-- [🧑‍🔧 Let's Get Started with Soldering!](#-lets-get-started-with-soldering)
-- [📥 Installing App](#-Installing-App)
-- [🎮 App Control ](#-App-Control)
-- [🎉 Final Outcome](#-final-outcome)
-- [🙏 Acknowledgments](#-acknowledgments)
-- [❤️ Support the project](#-support-the-project)
-- [⭐ Star History](#-star-history)
-
------
-
-## 🚀 What Can You Do with This?
-This jammer is based on the **Flipper Zero** integrated with the **NRF24** module. Thanks to its capabilities, you can effectively suppress signals from various technologies, including:
-- **Bluetooth** 🔊
-- **BLE** 📱
-- **Drones** 🚁
-- **Wi-Fi** 📶
-- **Zigbee**📡
-
------
-
-## 📋 List of Components
-To bring this project to life, you will need the following components:
-1. **NRF24L01+PA+LNA module** 🛠️
-2. **16V capacitor** rated at **100µF** 🔋
-3. **Step Down Module AMS1117 3.3V**
-
------
-
-## 🧑‍🔧 Let's Get Started with Soldering!
-
-<details>
-<summary><strong>One nRF24</strong></summary>
-
-<div style="margin-left: 20px;">
-
-### HSPI Connection
-| **nRF24** | **Flipper Zero GPIO** |
-|--------------|-----------------------|
-| CE           | B2                    |
-| CSN          | A4                    |
-| SCK          | B3                    |
-| MOSI         | A7                    |
-| MISO         | A6                    |
-| IRQ          |                       |
-
-### Power Supply Connection
-| **AMS1117** | **Flipper Zero GPIO** |
-|-------------|-----------------------|
-| VIN         | 5V                    |
-| GND         | GND                   |
-
-| **nRF24** | **AMS1117** | **capacitor** |
-|-----------|-------------|---------------|
-| VCC       | OUT         | +             |
-| GND       | GND         | -             |
-
-![One nRF24](schemes/One_nRF24/scheme.png)
-
-</div>
-</details>
-
-<details>
-<summary><strong>Two nRF24</strong></summary>
-
-<div style="margin-left: 20px;">
-
-### HSPI Connection
-| **nRF24** | **Flipper Zero GPIO** |
-|--------------|-----------------------|
-| CE           | B2                    |
-| CSN          | A4                    |
-| SCK          | B3                    |
-| MOSI         | A7                    |
-| MISO         | A6                    |
-| IRQ          |                       |
-
-### VSPI Connection
-| **nRF24** | **Flipper Zero GPIO** |
-|--------------|-----------------------|
-| CE           | C3                    |
-| CSN          | C0                    |
-| SCK          | B3                    |
-| MOSI         | A7                    |
-| MISO         | A6                    |
-| IRQ          |                       |
-
-### Power Supply Connection
-| **AMS1117** | **Flipper Zero GPIO** |
-|-------------|-----------------------|
-| VIN         | 5V                    |
-| GND         | GND                   |
-
-| **nRF24** | **AMS1117** | **capacitor** |
-|-----------|-------------|---------------|
-| VCC       | OUT         | +             |
-| GND       | GND         | -             |
-
-![Two nRF24](schemes/Two_nRF24/scheme.png)
-
-###### In both configurations (HSPI and VSPI), the same SCK, MOSI, and MISO pins are used. This is not a mistake—SPI interfaces can share clock and data lines, while proper operation is ensured by separate control signals (CSN and CE)
-
-</div>
-</details>
-
-<details>
-<summary><strong>Four nRF24</strong></summary>
-
-<div style="margin-left: 20px;">
-
-### Connecting First nRF24 module 
-| **nRF24**    | **Flipper Zero GPIO** |
-|--------------|-----------------------|
-| CE           | B2                    |
-| CSN          | A4                    |
-| SCK          | B3                    |
-| MOSI         | A7                    |
-| MISO         | A6                    |
-| IRQ          |                       |
-
-### Connecting Second nRF24 module 
-| **nRF24**    | **Flipper Zero GPIO** |
-|--------------|-----------------------|
-| CE           | SWC                   |
-| CSN          | C3                    |
-| SCK          | B3                    |
-| MOSI         | A7                    |
-| MISO         | A6                    |
-| IRQ          |                       |
-
-### Connecting Third nRF24 module  
-| **nRF24**    | **Flipper Zero GPIO** |
-|--------------|-----------------------|
-| CE           | C1                    |
-| CSN          | SIO                   |
-| SCK          | B3                    |
-| MOSI         | A7                    |
-| MISO         | A6                    |
-| IRQ          |                       |
+# FZ nRF24 Jammer
 
-### Connecting Fourth nRF24 module  
-| **nRF24**    | **Flipper Zero GPIO** |
-|--------------|-----------------------|
-| CE           | 1W                    |
-| CSN          | C0                    |
-| SCK          | B3                    |
-| MOSI         | A7                    |
-| MISO         | A6                    |
-| IRQ          |                       |
+Flipper Zero application for nRF24 modules, built for Momentum Firmware. The app supports multiple modules and several test modes for Bluetooth, BLE, WiFi, Zigbee, drones, and custom channel ranges.
 
-### Power Supply Connection
-| **AMS1117** | **Flipper Zero GPIO** |
-|-------------|-----------------------|
-| VIN         | 5V                    |
-| GND         | GND                   |
+Use RF equipment only where legally permitted and in a way that does not interfere with other users.
 
-| **nRF24** | **AMS1117** | **capacitor** |
-|-----------|-------------|---------------|
-| VCC       | OUT         | +             |
-| GND       | GND         | -             |
+## Project structure
 
-![Four nRF24](schemes/Four_nRF24/scheme.png)
+```text
+application.fam          Momentum application manifest
+nRF24_jammer.c           App logic, menu input, and radio control
+nRF24_jammer_ui.h        UI declarations
+lib/nrf24/nrf24.c        nRF24 hardware library
+lib/nrf24/nrf24.h        nRF24 hardware interface
+images/                  Application assets
+icon.png                 Application icon
+dist/                    Built FAP files
+```
 
-###### In both configurations (HSPI and VSPI), the same SCK, MOSI, and MISO pins are used. This is not a mistake—SPI interfaces can share clock and data lines, while proper operation is ensured by separate control signals (CSN and CE)
+## Build for Momentum
 
-</div>
-</details>
+Requirements:
 
-##### Anyone who built the device before version 1.4.0, please add the AMS1117 module to your circuit, without it the nrf24 does not work correctly
+- Linux, macOS, or WSL
+- Git
+- Python 3
+- A Momentum Firmware checkout
 
------
+Clone Momentum from the release branch with its submodules:
 
-## 📥 Installing App
+```bash
+git clone --depth 1 --branch release --recurse-submodules --jobs 8 \
+  https://github.com/Next-Flip/Momentum-Firmware.git
+cd Momentum-Firmware
+```
 
-1. Download the app from the **[releases](https://github.com/W0rthlessS0ul/FZ_nRF24_jammer/releases)** section that corresponds to your firmware.
-2. Install **[qFlipper](https://flipperzero.one)**
-3. In **qFlipper**, open **File manager** and copy `fz_nrf24_jammer.fap` to `/ext/apps/GPIO/NRF24/` on the Flipper Zero.
-4. Open the app through **GPIO > NRF24 > [NRF24] Jammer**. Restart the Flipper if the new submenu does not appear immediately.
+Copy this app into `applications_user`:
 
------
+```bash
+rm -rf applications_user/fz_nrf24_jammer
+cp -a /path/to/FZ_nRF24_jammer \
+  applications_user/fz_nrf24_jammer
+```
 
-## 🎮 App Control 
+Clean-build only this application:
 
-### 📋 Menu Navigation
-- **Up or Right button** short press → Next menu item
-- **Down or Left button** short press → Previous menu item
-- **OK button** short press → Select menu item
-- **Back button** short press → Exiting the app
+```bash
+./fbt -c build APPSRC=applications_user/fz_nrf24_jammer
+./fbt build APPSRC=applications_user/fz_nrf24_jammer
+```
 
-### 📡 Misc Jammer
-- **Up button** short press → Channel +1
-- **Up button** long press → Continuous channel +1 (every 100ms)
-- **Up button** double press → channel +10
-- **Up button** triple press → channel +100
-- **Down button** short press → Channel -1
-- **Down button** long press → Continuous channel -1 (every 100ms)
-- **Down button** double press → channel -10
-- **Down button** triple press → channel -100
-- **Right button** short press → Switch jamming mode
-- **Left button** short press → Switch jamming mode
-- **OK button** short press → Select channel
-- **Back button** short press → Back to the last selected subject
+A successful build ends with `APPCHK`. The FAP is written to:
 
-> **Back button** short press → stops active attacks
+```text
+build/f7-firmware-C/.extapps/fz_nrf24_jammer.fap
+```
 
------
+Optionally copy the FAP back into the project:
 
-## 🎉 Final Outcome
+```bash
+mkdir -p /path/to/FZ_nRF24_jammer/dist
+cp build/f7-firmware-C/.extapps/fz_nrf24_jammer.fap \
+  /path/to/FZ_nRF24_jammer/dist/fz_nrf24_jammer.fap
+sha256sum /path/to/FZ_nRF24_jammer/dist/fz_nrf24_jammer.fap
+```
 
-### App Appearance
-![App Appearance](img/gif/app_appearance.gif)
+You can also build and launch the app directly over USB:
 
-### Normal Spectrum
-![Normal Spectrum](img/gif/normal_spctr.gif)
+```bash
+./fbt launch APPSRC=applications_user/fz_nrf24_jammer
+```
 
-### Bluetooth Jam Spectrum
-![Bluetooth Jam Spectrum](img/gif/bluetooth_jam_spctr.gif)
+## Install
 
-### Drone Jam Spectrum
-![Drone Jam Spectrum](img/gif/drone_jam_spctr.gif)
+Using qFlipper, copy `dist/fz_nrf24_jammer.fap` to:
 
-### Wi-Fi Jam Spectrum
-![Wi-Fi Jam Spectrum](img/gif/wifi_jam_spctr.gif)
+```text
+/ext/apps/GPIO/NRF24/fz_nrf24_jammer.fap
+```
 
-### BLE Jam Spectrum
-![BLE Jam Spectrum](img/gif/ble_jam_spctr.gif)
+Open the app through:
 
-### Zigbee Jam Spectrum
-![Zigbee Jam Spectrum](img/gif/zigbee_jam_spctr.gif)
+```text
+GPIO > NRF24 > [NRF24] Jammer
+```
 
------
+## Controls
 
-## 🙏 Acknowledgments
+- `Up` and `Down`: previous/next item
+- `Left` and `Right`: change a setting or adjust a channel
+- `OK`: open a menu or start an action
+- `Back`: go back or stop an active action
+- Hold a channel control: adjust more quickly
 
-- [huuck](https://github.com/huuck) - **original author of the FlipperZeroNRFJammer**
+## Wiring
 
------
+The app supports configurations with one, two, or four nRF24 modules. See the schematics in the repository for GPIO connections and use a suitable external 3.3 V power supply for the modules.
 
-## ❤️ Support the project
+## Build verification
 
-If you would like to support this project, please consider starring the repository or following me! If you appreciate the hard work that went into this, buying me a cup of coffee would keep me fueled! ☕ 
+After building, run at least:
 
-**BTC Address:** `bc1qvul4mlxxw5h2hnt8knnxdrxuwgpf4styyk20tm`
+```bash
+git diff --check
+sha256sum dist/fz_nrf24_jammer.fap
+```
 
-**ETH Address:** `0x5c54eAb2acFE1c6C866FB4b050d8B69CfB1138Af`
-
-**LTC Address:** `LbdzCsYbxuD341raar6Cg1yKavaDq7fjuV`
-
-**XRP Address:** `rKLLPzoBGfqY3pAQPwTFPRYaWjpHSwHNDw`
-
-**ADA Address:** `addr1qyz2aku0ucmxqnl60lza23lkx2xha8zmxz9wqxnrtvpjysgy4mdcle3kvp8l5l7964rlvv5d06w9kvy2uqdxxkcryfqs7pajev`
-
-**DOGE Address:** `DBzAvD62yQUkP4Cb7C5LuFYQEierF3D3oG`
-
-<a href="https://nowpayments.io/donation?
-  api_key=6370NCF-SXJ4MMC-N71CVMS-6G52PW9"
-  target="_blank" rel="noreferrer noopener">
-  <img src="https://nowpayments.io/images/embeds/donation-button-black.svg" 
-  alt="Cryptocurrency & Bitcoin donation button by NOWPayments">
-</a>
-
-Every donation is greatly appreciated and contributes to the ongoing development of this project!
-
----
-
-## ⭐ Star History
-
-<a href="https://star-history.dera.page/#W0rthlessS0ul/FZ_nRF24_jammer">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=W0rthlessS0ul/FZ_nRF24_jammer&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=W0rthlessS0ul/FZ_nRF24_jammer" />
-   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=W0rthlessS0ul/FZ_nRF24_jammer" />
- </picture>
-</a>
+Build the FAP against the same Momentum release that runs on the target Flipper Zero.
