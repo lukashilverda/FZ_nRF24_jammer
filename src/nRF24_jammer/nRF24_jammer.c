@@ -7,124 +7,9 @@
 #include <nrf24.h>
 #include <storage/storage.h>
 #include <toolbox/stream/file_stream.h>
-#include "fz_nrf24_jammer_icons.h"
+#include "nRF24_jammer.h"
 
 #define TAG "nRF24_jammer_app"
-#define HOLD_DELAY_MS 100
-
-#define MAX_NRF24 4
-
-typedef enum {
-    MENU_BLUETOOTH,
-    MENU_DRONE,
-    MENU_WIFI,
-    MENU_BLE,
-    MENU_ZIGBEE,
-    MENU_MISC,
-    MENU_SETTINGS,
-    MENU_COUNT
-} MenuType;
-
-typedef enum {
-    WIFI_MODE_SELECT,
-    WIFI_MODE_ALL,
-    WIFI_MODE_COUNT
-} WifiMode;
-
-typedef enum {
-    MISC_STATE_IDLE,
-    MISC_STATE_SET_START,
-    MISC_STATE_SET_STOP,
-    MISC_STATE_ERROR,
-    MISC_STATE_COUNT
-} MiscState;
-
-typedef enum {
-    MISC_MODE_CHANNEL_SWITCHING,
-    MISC_MODE_PACKET_SENDING,
-    MISC_MODE_COUNT
-} MiscMode;
-
-typedef enum {
-    BLUETOOTH_MODE_LIST,
-    BLUETOOTH_MODE_RANDOM,
-    BLUETOOTH_MODE_BRUTEFORCE,
-    BLUETOOTH_MODE_COUNT
-} BluetoothJamMethod;
-
-typedef enum {
-    DRONE_MODE_BRUTEFORCE,
-    DRONE_MODE_RANDOM,
-    DRONE_MODE_COUNT
-} DroneJamMethod;
-
-typedef enum {
-    MODULES_MODE_SEPARATE,
-    MODULES_MODE_TOGETHER,
-    MODULES_MODE_COUNT
-} ModulesMode;
-
-typedef enum {
-    SETTINGS_ITEM_SPI_MODE,
-    SETTINGS_ITEM_MODULES_MODE,
-    SETTINGS_ITEM_BLUETOOTH_METHOD,
-    SETTINGS_ITEM_DRONE_METHOD,
-    SETTINGS_ITEM_LOGO,
-    SETTINGS_ITEM_COUNT
-} SettingsItem;
-
-typedef enum {
-    SHOW_LOGO,
-    HIDE_LOGO,
-    LOGO_COUNT
-} Is_Logo;
-
-typedef enum {
-    SPI_MODE_DEFAULT,  // CS on PA4 (standard standalone NRF24)
-    SPI_MODE_EXTRA,    // CS on PC3 (2-in-1 NRF24+CC1101 module)
-    SPI_MODE_COUNT
-} SpiMode;
-
-typedef struct {
-    FuriMutex* mutex;
-    NotificationApp* notifications;
-    FuriThread* thread;
-    ViewPort* view_port;
-    
-    bool is_running;
-    bool is_stop;
-    bool wifi_menu_active;
-    bool show_jamming_started;
-    bool wifi_channel_select;
-    bool is_modules_connected;
-    bool settings_menu_active;
-    bool ble_menu_active;
-    uint8_t ble_selected;
-    
-    MenuType current_menu;
-    WifiMode wifi_mode;
-    MiscState misc_state;
-    MiscMode misc_mode;
-    uint8_t wifi_channel;
-    uint8_t misc_start;
-    uint8_t misc_stop;
-
-    SpiMode spi_mode;
-    ModulesMode modules_mode;
-    BluetoothJamMethod bluetooth_jam_method;
-    DroneJamMethod drone_jam_method;
-    uint8_t is_logo;
-    
-    SettingsItem selected_setting_item;
-
-    InputKey held_key;
-    uint32_t hold_counter;
-    uint32_t last_up_press_time;
-    uint32_t last_down_press_time;
-    uint8_t up_press_count;
-    uint8_t down_press_count;
-    uint8_t len_modules;
-} PluginState;
 
 typedef enum {
     EVENT_TICK,
@@ -199,9 +84,15 @@ static void settings_load(PluginState* state) {
             
             if(bytes_read == file_size) {
                 char* content = (char*)file_buf;
-                char* line = strtok(content, "\n");
+                char* line = content;
                 
                 while(line != NULL) {
+                    char* next_line = strchr(line, '\n');
+                    if(next_line != NULL) {
+                        *next_line = '\0';
+                        next_line++;
+                    }
+
                     if(strstr(line, "spi_mode=") != NULL) {
                         char* value = strchr(line, '=');
                         if(value != NULL) {
@@ -247,7 +138,7 @@ static void settings_load(PluginState* state) {
                                 state->is_logo = SHOW_LOGO;
                         }
                     }
-                    line = strtok(NULL, "\n");
+                    line = next_line;
                 }
             }
             
@@ -572,267 +463,6 @@ static int32_t jam_thread(void* ctx) {
     return 0;
 }
 
-static void render_settings_menu(Canvas* canvas, PluginState* state) {
-    const uint8_t item_height = 12;
-    const uint8_t start_y = 0;
-    const uint8_t visible_items = 5;
-    const uint8_t total_items = SETTINGS_ITEM_COUNT;
-    
-    static uint8_t scroll_offset = 0;
-    
-    if(state->selected_setting_item < scroll_offset) {
-        scroll_offset = state->selected_setting_item;
-    } else if(state->selected_setting_item >= scroll_offset + visible_items) {
-        scroll_offset = state->selected_setting_item - visible_items + 1;
-    }
-    
-    canvas_set_font(canvas, FontSecondary);
-    
-    for(uint8_t i = 0; i < visible_items && i + scroll_offset < total_items; i++) {
-        uint8_t y = start_y + (i * item_height);
-        uint8_t item_index = i + scroll_offset;
-        
-        if(item_index == state->selected_setting_item) {
-            canvas_draw_frame(canvas, 2, y, 124, item_height);
-        }
-        
-        switch(item_index) {
-            case SETTINGS_ITEM_SPI_MODE:
-                canvas_draw_str(canvas, 4, y + 9, "SPI Pin:");
-                if(state->spi_mode == SPI_MODE_DEFAULT) {
-                    canvas_draw_str(canvas, 60, y + 9, "Default 4");
-                } else {
-                    canvas_draw_str(canvas, 60, y + 9, "Extra 7");
-                }
-                break;
-
-            case SETTINGS_ITEM_MODULES_MODE:
-                canvas_draw_str(canvas, 4, y + 9, "Modules:");
-                if(state->modules_mode == MODULES_MODE_SEPARATE) {
-                    canvas_draw_str(canvas, 60, y + 9, "Separate");
-                } else {
-                    canvas_draw_str(canvas, 60, y + 9, "Together");
-                }
-                break;
-                
-            case SETTINGS_ITEM_BLUETOOTH_METHOD:
-                canvas_draw_str(canvas, 4, y + 9, "Bluetooth:");
-                switch(state->bluetooth_jam_method) {
-                    case BLUETOOTH_MODE_LIST:
-                        canvas_draw_str(canvas, 60, y + 9, "List");
-                        break;
-                    case BLUETOOTH_MODE_RANDOM:
-                        canvas_draw_str(canvas, 60, y + 9, "Random");
-                        break;
-                    case BLUETOOTH_MODE_BRUTEFORCE:
-                        canvas_draw_str(canvas, 60, y + 9, "Bruteforce");
-                        break;
-                    case BLUETOOTH_MODE_COUNT:
-                    default:
-                        canvas_draw_str(canvas, 60, y + 9, "List");
-                        break;
-                }
-                break;
-                
-            case SETTINGS_ITEM_DRONE_METHOD:
-                canvas_draw_str(canvas, 4, y + 9, "Drone:");
-                switch(state->drone_jam_method) {
-                    case DRONE_MODE_BRUTEFORCE:
-                        canvas_draw_str(canvas, 60, y + 9, "Bruteforce");
-                        break;
-                    case DRONE_MODE_RANDOM:
-                        canvas_draw_str(canvas, 60, y + 9, "Random");
-                        break;
-                    case DRONE_MODE_COUNT:
-                    default:
-                        canvas_draw_str(canvas, 60, y + 9, "Bruteforce");
-                        break;
-                }
-                break;
-
-            case SETTINGS_ITEM_LOGO:
-                canvas_draw_str(canvas, 4, y + 9, "Logo:");
-                switch(state->is_logo) {
-                    case SHOW_LOGO:
-                        canvas_draw_str(canvas, 60, y + 9, "Show");
-                        break;
-                    case HIDE_LOGO:
-                        canvas_draw_str(canvas, 60, y + 9, "Hide");
-                        break;
-                    case LOGO_COUNT:
-                    default:
-                        canvas_draw_str(canvas, 60, y + 9, "Show");
-                        break;
-                }
-                break;
-                
-            default:
-                break;
-        }
-    }
-}
-
-static void render_settings_screen(Canvas* canvas, PluginState* state) {
-    char buffer[32];
-    canvas_set_font(canvas, FontPrimary);
-    
-    if(state->misc_state == MISC_STATE_SET_START) {
-        snprintf(buffer, sizeof(buffer), "Start channel: %d", state->misc_start);
-        canvas_draw_str_aligned(canvas, 64, 20, AlignCenter, AlignCenter, buffer);
-        
-        canvas_set_font(canvas, FontSecondary);
-        if(state->misc_mode == MISC_MODE_CHANNEL_SWITCHING) {
-            snprintf(buffer, sizeof(buffer), "Mode: Channel Switching");
-        } else {
-            snprintf(buffer, sizeof(buffer), "Mode: Packet Sending");
-        }
-        canvas_draw_str_aligned(canvas, 64, 30, AlignCenter, AlignCenter, buffer);
-        
-        canvas_draw_str_aligned(canvas, 64, 40, AlignCenter, AlignCenter, "Press OK to set stop");
-    } else if(state->misc_state == MISC_STATE_SET_STOP) {
-        snprintf(buffer, sizeof(buffer), "Start: %d Stop: %d", state->misc_start, state->misc_stop);
-        canvas_draw_str_aligned(canvas, 64, 20, AlignCenter, AlignCenter, buffer);
-        
-        canvas_set_font(canvas, FontSecondary);
-        if(state->misc_mode == MISC_MODE_CHANNEL_SWITCHING) {
-            snprintf(buffer, sizeof(buffer), "Mode: Channel Switching");
-        } else {
-            snprintf(buffer, sizeof(buffer), "Mode: Packet Sending");
-        }
-        canvas_draw_str_aligned(canvas, 64, 30, AlignCenter, AlignCenter, buffer);
-        
-        if(state->misc_stop > state->misc_start) {
-            canvas_draw_str_aligned(canvas, 64, 40, AlignCenter, AlignCenter, "Press OK to start");
-        } else {
-            canvas_draw_str_aligned(canvas, 64, 40, AlignCenter, AlignCenter, "Error: Start < Stop");
-        }
-    } else if(state->misc_state == MISC_STATE_ERROR) {
-        canvas_set_font(canvas, FontPrimary);
-        canvas_draw_str_aligned(canvas, 64, 20, AlignCenter, AlignCenter, "Invalid range");
-        canvas_set_font(canvas, FontSecondary);
-        canvas_draw_str_aligned(canvas, 64, 35, AlignCenter, AlignCenter, "Start must be < Stop");
-    } else if(state->misc_state == MISC_STATE_IDLE) {
-    } else if(state->misc_state == MISC_STATE_COUNT) {
-    }
-}
-
-static void render_wifi_channel_select(Canvas* canvas, PluginState* state) {
-    char buffer[32];
-    canvas_set_font(canvas, FontPrimary);
-    snprintf(buffer, sizeof(buffer), "WiFi channel: %d", state->wifi_channel);
-    canvas_draw_str_aligned(canvas, 64, 32, AlignCenter, AlignCenter, buffer);
-    canvas_set_font(canvas, FontSecondary);
-    canvas_draw_str_aligned(canvas, 64, 45, AlignCenter, AlignCenter, "Press OK to start");
-}
-
-static void render_wifi_menu(Canvas* canvas, PluginState* state) {
-    if(state->wifi_mode == WIFI_MODE_ALL) {
-        canvas_draw_icon(canvas, 0, 0, &I_wifi_all);
-    } else {
-        canvas_draw_icon(canvas, 0, 0, &I_wifi_select);
-    }
-}
-
-static void render_active_jamming(Canvas* canvas, MenuType menu) {
-    switch(menu) {
-        case MENU_BLUETOOTH: canvas_draw_icon(canvas, 0, 0, &I_bluetooth_jam); break;
-        case MENU_DRONE: canvas_draw_icon(canvas, 0, 0, &I_drone_jam); break;
-        case MENU_WIFI: canvas_draw_icon(canvas, 0, 0, &I_wifi_jam); break;
-        case MENU_BLE: canvas_draw_icon(canvas, 0, 0, &I_ble_jam); break;
-        case MENU_ZIGBEE: canvas_draw_icon(canvas, 0, 0, &I_zigbee_jam); break;
-        case MENU_MISC:
-        case MENU_SETTINGS:
-        case MENU_COUNT:
-        default:
-            break;
-    }
-}
-
-static void render_menu_icons(Canvas* canvas, MenuType menu) {
-    switch(menu) {
-        case MENU_BLUETOOTH: canvas_draw_icon(canvas, 0, 0, &I_bluetooth_jammer); break;
-        case MENU_DRONE: canvas_draw_icon(canvas, 0, 0, &I_drone_jammer); break;
-        case MENU_WIFI: canvas_draw_icon(canvas, 0, 0, &I_wifi_jammer); break;
-        case MENU_BLE: canvas_draw_icon(canvas, 0, 0, &I_ble_jammer); break;
-        case MENU_ZIGBEE: canvas_draw_icon(canvas, 0, 0, &I_zigbee_jammer); break;
-        case MENU_MISC: canvas_draw_icon(canvas, 0, 0, &I_misc_jammer); break;
-        case MENU_SETTINGS: canvas_draw_icon(canvas, 0, 0, &I_settings); break;
-        case MENU_COUNT:
-        default:
-            break;
-    }
-}
-
-static void render_logo(Canvas* canvas, void* ctx){
-    PluginState* state = ctx;
-    if (state->is_logo == SHOW_LOGO)
-        canvas_draw_icon(canvas, 0, 0, &I_logo);
-}
-
-static void render_callback(Canvas* canvas, void* ctx) {
-    PluginState* state = ctx;
-    canvas_clear(canvas);
-    canvas_draw_frame(canvas, 0, 0, 128, 64);
-    
-    if(!state->is_modules_connected) {
-        char buffer[32];
-        canvas_set_font(canvas, FontPrimary);
-
-        canvas_draw_str_aligned(canvas, 64, 10, AlignCenter, AlignTop, "Module Status");
-
-        snprintf(buffer, sizeof(buffer), "Connected: %d module(s)", state->len_modules);
-        canvas_draw_str_aligned(canvas, 64, 25, AlignCenter, AlignTop, buffer);
-
-        if(state->len_modules == 0) {
-            canvas_set_font(canvas, FontSecondary);
-            canvas_draw_str_aligned(canvas, 64, 40, AlignCenter, AlignTop, "No modules detected");
-            canvas_draw_str_aligned(canvas, 64, 50, AlignCenter, AlignTop, "Please connect module");
-        }
-    }
-    else if(state->current_menu == MENU_MISC && state->show_jamming_started) {
-        canvas_set_font(canvas, FontPrimary);
-        canvas_draw_str_aligned(canvas, 64, 32, AlignCenter, AlignCenter, "Jamming started");
-    }
-    else if(state->is_running) {
-        render_active_jamming(canvas, state->current_menu);
-    }
-    else if(state->current_menu == MENU_SETTINGS) {
-        if(state->settings_menu_active) {
-            render_settings_menu(canvas, state);
-        } else {
-            render_menu_icons(canvas, state->current_menu);
-        }
-    }
-    else if(state->current_menu == MENU_MISC && state->misc_state != MISC_STATE_IDLE) {
-        render_settings_screen(canvas, state);
-    }
-    else if(state->current_menu == MENU_WIFI) {
-        if(state->wifi_menu_active) {
-            if(state->wifi_channel_select) {
-                render_wifi_channel_select(canvas, state);
-            } else {
-                render_wifi_menu(canvas, state);
-            }
-        } else {
-            render_menu_icons(canvas, state->current_menu);
-        }
-    }
-    else if(state->current_menu == MENU_BLE) {
-        if(state->ble_menu_active) {
-            if(state->ble_selected == 0) {
-                canvas_draw_icon(canvas, 0, 0, &I_advertising_channels);
-            } else {
-                canvas_draw_icon(canvas, 0, 0, &I_data_channels);
-            }
-        } else {
-            render_menu_icons(canvas, state->current_menu);
-        }
-    }
-    else {
-        render_menu_icons(canvas, state->current_menu);
-    }
-}
-
 static void input_callback(InputEvent* event, void* ctx) {
     FuriMessageQueue* queue = ctx;
     PluginEvent plugin_event = {.type = EVENT_KEY, .input = *event};
@@ -900,9 +530,9 @@ static void handle_settings_input(PluginState* state, InputKey key, bool is_hold
 }
 
 static void handle_menu_input(PluginState* state, InputKey key) {
-    if(key == InputKeyUp || key == InputKeyRight) {
+    if(key == InputKeyDown || key == InputKeyRight) {
         state->current_menu = (state->current_menu + 1) % MENU_COUNT;
-    } else if(key == InputKeyDown || key == InputKeyLeft) {
+    } else if(key == InputKeyUp || key == InputKeyLeft) {
         state->current_menu = (state->current_menu == 0) ? 
             (MENU_COUNT - 1) : (state->current_menu - 1);
     }
@@ -1032,12 +662,12 @@ int32_t nRF24_jammer_app(void* p) {
 
     Gui* gui = furi_record_open(RECORD_GUI);
     state->view_port = view_port_alloc();
-    view_port_draw_callback_set(state->view_port, render_logo, state);
+    view_port_draw_callback_set(state->view_port, nrf24_jammer_render_logo, state);
     gui_add_view_port(gui, state->view_port, GuiLayerFullscreen);
     view_port_update(state->view_port);
     if (state->is_logo == SHOW_LOGO)
-        furi_delay_ms(2000);
-    view_port_draw_callback_set(state->view_port, render_callback, state);
+        furi_delay_ms(800);
+    view_port_draw_callback_set(state->view_port, nrf24_jammer_render, state);
     view_port_input_callback_set(state->view_port, input_callback, queue);
     
     gui_add_view_port(gui, state->view_port, GuiLayerFullscreen);
@@ -1141,7 +771,11 @@ int32_t nRF24_jammer_app(void* p) {
                             if(state->wifi_channel_select) {
                                 handle_wifi_input(state, InputKeyUp);
                             } else {
-                                state->wifi_mode = (state->wifi_mode + 1) % WIFI_MODE_COUNT;
+                                if(state->wifi_mode == 0) {
+                                    state->wifi_mode = WIFI_MODE_COUNT - 1;
+                                } else {
+                                    state->wifi_mode--;
+                                }
                             }
                         } else if(state->current_menu == MENU_SETTINGS && state->settings_menu_active) {
                             handle_settings_menu_input(state, InputKeyUp);
@@ -1166,11 +800,7 @@ int32_t nRF24_jammer_app(void* p) {
                             if(state->wifi_channel_select) {
                                 handle_wifi_input(state, InputKeyDown);
                             } else {
-                                if(state->wifi_mode == 0) {
-                                    state->wifi_mode = WIFI_MODE_COUNT - 1;
-                                } else {
-                                    state->wifi_mode--;
-                                }
+                                state->wifi_mode = (state->wifi_mode + 1) % WIFI_MODE_COUNT;
                             }
                         } else if(state->current_menu == MENU_SETTINGS && state->settings_menu_active) {
                             handle_settings_menu_input(state, InputKeyDown);

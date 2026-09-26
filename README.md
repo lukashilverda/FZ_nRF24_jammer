@@ -185,7 +185,8 @@ To bring this project to life, you will need the following components:
 
 1. Download the app from the **[releases](https://github.com/W0rthlessS0ul/FZ_nRF24_jammer/releases)** section that corresponds to your firmware.
 2. Install **[qFlipper](https://flipperzero.one)**
-3. In **qFlipper**, go to the "**File manager**" section, and transfer the application downloaded from **release** to a convenient location on Flipper Zero
+3. In **qFlipper**, open **File manager** and copy `fz_nrf24_jammer.fap` to `/ext/apps/GPIO/NRF24/` on the Flipper Zero.
+4. Open the app through **GPIO > NRF24 > [NRF24] Jammer**. Restart the Flipper if the new submenu does not appear immediately.
 
 -----
 
