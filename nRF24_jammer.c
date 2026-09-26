@@ -21,6 +21,7 @@ typedef enum {
     MENU_ZIGBEE,
     MENU_MISC,
     MENU_SETTINGS,
+    MENU_SPECTRUM,
     MENU_COUNT
 } MenuType;
 
@@ -122,6 +123,9 @@ typedef struct {
     uint8_t up_press_count;
     uint8_t down_press_count;
     uint8_t len_modules;
+    uint8_t analyzer_activity[126];
+    uint8_t analyzer_top_channels[3];
+    uint8_t analyzer_top_activity[3];
 } PluginState;
 
 typedef enum {
@@ -539,6 +543,40 @@ static void jam_zigbee(PluginState* state) {
     }
 }
 
+static void update_analyzer_top(PluginState* state) {
+    memset(state->analyzer_top_channels, 0, sizeof(state->analyzer_top_channels));
+    memset(state->analyzer_top_activity, 0, sizeof(state->analyzer_top_activity));
+    for(uint8_t channel = 0; channel < 126; channel++) {
+        uint8_t activity = state->analyzer_activity[channel];
+        for(uint8_t rank = 0; rank < 3; rank++) {
+            if(activity > state->analyzer_top_activity[rank]) {
+                for(uint8_t shift = 2; shift > rank; shift--) {
+                    state->analyzer_top_activity[shift] = state->analyzer_top_activity[shift - 1];
+                    state->analyzer_top_channels[shift] = state->analyzer_top_channels[shift - 1];
+                }
+                state->analyzer_top_activity[rank] = activity;
+                state->analyzer_top_channels[rank] = channel;
+                break;
+            }
+        }
+    }
+}
+
+static void run_spectrum_analyzer(PluginState* state) {
+    memset(state->analyzer_activity, 0, sizeof(state->analyzer_activity));
+    while(!state->is_stop) {
+        for(uint8_t channel = 0; channel < 126 && !state->is_stop; channel++) {
+            nrf24_set_chan(&nrf24_dev[0], channel);
+            nrf24_start_rpd_scan(&nrf24_dev[0]);
+            if(nrf24_read_rpd(&nrf24_dev[0]) && state->analyzer_activity[channel] < UINT8_MAX) {
+                state->analyzer_activity[channel]++;
+            }
+            nrf24_set_idle(&nrf24_dev[0]);
+        }
+        update_analyzer_top(state);
+    }
+}
+
 static int32_t jam_thread(void* ctx) {
     PluginState* state = ctx;
     state->is_running = true;
@@ -556,6 +594,7 @@ static int32_t jam_thread(void* ctx) {
             break;
         case MENU_ZIGBEE: jam_zigbee(state); break;
         case MENU_MISC: jam_misc(state); break;
+        case MENU_SPECTRUM: run_spectrum_analyzer(state); break;
         case MENU_SETTINGS:
         case MENU_COUNT:
             break;
@@ -852,6 +891,8 @@ int32_t nRF24_jammer_app(void* p) {
                 }
             }
         }
+
+        if(state->is_running) view_port_update(state->view_port);
 
         if(status == FuriStatusOk && event.type == EVENT_KEY) {
             if(event.input.type == InputTypePress) {

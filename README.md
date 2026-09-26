@@ -1,6 +1,6 @@
 # FZ nRF24 Jammer
 
-Flipper Zero application for nRF24 modules, built for Momentum Firmware. The app supports multiple modules and several test modes for Bluetooth, BLE, WiFi, Zigbee, drones, and custom channel ranges.
+Flipper Zero application for nRF24 modules, built for Momentum Firmware. The app supports multiple modules and several test modes for Bluetooth, BLE, WiFi, Zigbee, drones, and custom channel ranges. It also includes a receive-only Spectrum mode that scans nRF24 channels 0-125 and reports the three channels with the most RPD detections.
 
 Use RF equipment only where legally permitted and in a way that does not interfere with other users.
 
@@ -91,6 +91,8 @@ GPIO > NRF24 > [NRF24] Jammer
 - `OK`: open a menu or start an action
 - `Back`: go back or stop an active action
 - Hold a channel control: adjust more quickly
+
+Choose `Spectrum` from the main menu and press `OK` to start a passive scan. The analyzer only enables the nRF24 receiver and reads its Received Power Detector; it does not transmit.
 
 ## Wiring
 

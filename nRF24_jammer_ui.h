@@ -5,7 +5,7 @@
 #include <gui/elements.h>
 
 static const char* const menu_labels[MENU_COUNT] = {
-    "Bluetooth", "Drones", "Wi-Fi", "BLE", "Zigbee", "Custom range", "Settings"};
+    "Bluetooth", "Drones", "Wi-Fi", "BLE", "Zigbee", "Custom range", "Settings", "Spectrum"};
 
 static const char* bluetooth_method_label(BluetoothJamMethod method) {
     switch(method) {
@@ -220,12 +220,48 @@ static void render_active_jamming(Canvas* canvas, const PluginState* state) {
     ui_back_hint(canvas, "Back: Stop");
 }
 
+static void render_spectrum(Canvas* canvas, const PluginState* state) {
+    uint8_t max_activity = 0;
+    for(uint8_t channel = 0; channel < 126; channel++) {
+        if(state->analyzer_activity[channel] > max_activity) {
+            max_activity = state->analyzer_activity[channel];
+        }
+    }
+
+    ui_header(canvas, "Spectrum", "Receive only");
+    canvas_draw_line(canvas, 4, 52, 123, 52);
+    for(uint8_t bin = 0; bin < 16; bin++) {
+        uint8_t bin_max = 0;
+        uint8_t first_channel = bin * 8;
+        uint8_t last_channel = first_channel + 8;
+        if(last_channel > 126) last_channel = 126;
+        for(uint8_t channel = first_channel; channel < last_channel; channel++) {
+            if(state->analyzer_activity[channel] > bin_max) {
+                bin_max = state->analyzer_activity[channel];
+            }
+        }
+
+        uint8_t height = max_activity ? (bin_max * 32) / max_activity : 0;
+        uint8_t x = 6 + bin * 7;
+        if(height > 0) canvas_draw_box(canvas, x, 52 - height, 5, height);
+        if((bin % 4) == 0) canvas_draw_line(canvas, x, 53, x, 55);
+    }
+    canvas_set_font(canvas, FontSecondary);
+    canvas_draw_str(canvas, 4, 63, "0");
+    canvas_draw_str(canvas, 31, 63, "32");
+    canvas_draw_str(canvas, 59, 63, "64");
+    canvas_draw_str(canvas, 87, 63, "96");
+    canvas_draw_str(canvas, 112, 63, "125");
+}
+
 static void render_callback(Canvas* canvas, void* ctx) {
     const PluginState* state = ctx;
     canvas_clear(canvas);
     canvas_set_color(canvas, ColorBlack);
     if(!state->is_modules_connected) {
         render_module_status(canvas, state);
+    } else if(state->is_running && state->current_menu == MENU_SPECTRUM) {
+        render_spectrum(canvas, state);
     } else if(state->is_running ||
               (state->current_menu == MENU_MISC && state->show_jamming_started)) {
         render_active_jamming(canvas, state);

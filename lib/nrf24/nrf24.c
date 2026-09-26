@@ -352,6 +352,25 @@ uint8_t nrf24_set_rx_mode(nrf24_device_t* device) {
     return status;
 }
 
+uint8_t nrf24_start_rpd_scan(nrf24_device_t* device) {
+    uint8_t status = 0;
+    uint8_t cfg = 0;
+    furi_hal_gpio_write(device->ce_pin, false);
+    nrf24_read_reg(device, REG_CONFIG, &cfg, 1);
+    cfg |= 0x03;
+    status = nrf24_write_reg(device, REG_CONFIG, cfg);
+    nrf24_write_reg(device, REG_STATUS, RX_DR);
+    furi_hal_gpio_write(device->ce_pin, true);
+    furi_delay_us(150);
+    return status;
+}
+
+bool nrf24_read_rpd(nrf24_device_t* device) {
+    uint8_t rpd = 0;
+    nrf24_read_reg(device, REG_RPD, &rpd, 1);
+    return (rpd & 0x01) != 0;
+}
+
 uint8_t nrf24_set_tx_mode(nrf24_device_t* device) {
     uint8_t status = 0;
     uint8_t cfg = 0;

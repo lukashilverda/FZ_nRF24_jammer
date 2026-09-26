@@ -30,6 +30,7 @@ extern "C" {
 #define REG_FEATURE 0x1D
 #define REG_RF_SETUP 0x06
 #define REG_STATUS 0x07
+#define REG_RPD 0x09
 #define REG_RX_ADDR_P0 0x0A
 #define REG_RX_ADDR_P1 0x0B
 #define REG_RX_ADDR_P2 0x0C
@@ -127,6 +128,8 @@ uint8_t nrf24_set_idle(nrf24_device_t* device);
  * @return     device status
  */
 uint8_t nrf24_set_rx_mode(nrf24_device_t* device);
+uint8_t nrf24_start_rpd_scan(nrf24_device_t* device);
+bool nrf24_read_rpd(nrf24_device_t* device);
 
 /** Sets the radio to max power TX
  *
